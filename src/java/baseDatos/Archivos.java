@@ -1,11 +1,15 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ *  TALLER ARCHIVOS ACCESO ALEATORIO
+ *  co-Author ::: Juan Albarracin
+ *  co-Author ::: Mario Bolaños
+ *  co-Author ::: Brian Sterling
+ *  Professor ::: Fabian Giraldo
+ *    Program ::: Bases de Datos
  */
 package baseDatos;
 
 import java.io.IOException;
+import java.util.Enumeration;
 import java.util.Hashtable;
 
 /**
@@ -14,7 +18,6 @@ import java.util.Hashtable;
  */
 public class Archivos extends RepertorioArchivos
 {
-
     /**
      * Hashtable which holds the in-memory index. For efficiency, the entire
      * index is cached in memory. The hashtable maps a key of type String to a
@@ -36,13 +39,15 @@ public class Archivos extends RepertorioArchivos
     /**
      * Opens an existing database and initializes the in-memory index.
      */
-    public Archivos(String dbPath, String accessFlags) throws IOException, RecordsFileException {
+    public Archivos(String dbPath, String accessFlags) throws IOException, ArchivosException
+    {
         super(dbPath, accessFlags);
         int numRecords = readNumRecordsHeader();
         memIndex = new Hashtable(numRecords);
-        for (int i = 0; i < numRecords; i++) {
+        for (int i = 0; i < numRecords; i++)
+        {
             String key = readKeyFromIndex(i);
-            RecordHeader header = readRecordHeaderFromIndex(i);
+            ArchivosEncabezado header = readRecordHeaderFromIndex(i);
             header.setIndexPosition(i);
             memIndex.put(key, header);
         }
@@ -51,31 +56,35 @@ public class Archivos extends RepertorioArchivos
     /**
      * Returns an enumeration of all the keys in the database.
      */
-    public synchronized Enumeration enumerateKeys() {
+    public synchronized Enumeration enumerateKeys()
+    {
         return memIndex.keys();
     }
 
     /**
      * Returns the current number of records in the database.
      */
-    public synchronized int getNumRecords() {
+    public synchronized int getNumRecords()
+    {
         return memIndex.size();
     }
 
     /**
      * Checks if there is a record belonging to the given key.
      */
-    public synchronized boolean recordExists(String key) {
+    public synchronized boolean recordExists(String key)
+    {
         return memIndex.containsKey(key);
     }
 
     /**
      * Maps a key to a record header by looking it up in the in-memory index.
      */
-    protected RecordHeader keyToRecordHeader(String key) throws RecordsFileException {
-        RecordHeader h = (RecordHeader) memIndex.get(key);
+    protected ArchivosEncabezado keyToRecordHeader(String key) throws ArchivosException
+    {
+        ArchivosEncabezado h = (ArchivosEncabezado) memIndex.get(key);
         if (h == null) {
-            throw new RecordsFileException("Key not found: " + key);
+            throw new ArchivosException("Key not found: " + key);
         }
         return h;
     }
@@ -84,12 +93,13 @@ public class Archivos extends RepertorioArchivos
      * This method searches the file for free space and then returns a
      * RecordHeader which uses the space. (O(n) memory accesses)
      */
-    protected RecordHeader allocateRecord(String key, int dataLength) throws RecordsFileException, IOException {
+    protected ArchivosEncabezado allocateRecord(String key, int dataLength) throws ArchivosException, IOException
+    {
         // search for empty space
-        RecordHeader newRecord = null;
+        ArchivosEncabezado newRecord = null;
         Enumeration e = memIndex.elements();
         while (e.hasMoreElements()) {
-            RecordHeader next = (RecordHeader) e.nextElement();
+            ArchivosEncabezado next = (ArchivosEncabezado) e.nextElement();
             int free = next.getFreeSpace();
             if (dataLength <= next.getFreeSpace()) {
                 newRecord = next.split();
@@ -101,7 +111,7 @@ public class Archivos extends RepertorioArchivos
             // append record to end of file - grows file to allocate space
             long fp = getFileLength();
             setFileLength(fp + dataLength);
-            newRecord = new RecordHeader(fp, dataLength);
+            newRecord = new ArchivosEncabezado(fp, dataLength);
         }
         return newRecord;
     }
@@ -112,12 +122,13 @@ public class Archivos extends RepertorioArchivos
      * RecordHeader which is returned. Returns null if the location is not part
      * of a record. (O(n) mem accesses)
      */
-    protected RecordHeader getRecordAt(long targetFp) throws RecordsFileException {
+    protected ArchivosEncabezado getRecordAt(long targetFp) throws ArchivosException
+    {
         Enumeration e = memIndex.elements();
         while (e.hasMoreElements()) {
-            RecordHeader next = (RecordHeader) e.nextElement();
-            if (targetFp >= next.dataPointer
-                    && targetFp < next.dataPointer + (long) next.dataCapacity) {
+            ArchivosEncabezado next = (ArchivosEncabezado) e.nextElement();
+            if (targetFp >= next.dataPointer && targetFp < next.dataPointer + (long) next.dataCapacity)
+            {
                 return next;
             }
         }
@@ -127,10 +138,14 @@ public class Archivos extends RepertorioArchivos
     /**
      * Closes the database.
      */
-    public synchronized void close() throws IOException, RecordsFileException {
-        try {
+    public synchronized void close() throws IOException, ArchivosException
+    {
+        try 
+        {
             super.close();
-        } finally {
+        }
+        finally
+        {
             memIndex.clear();
             memIndex = null;
         }
@@ -140,7 +155,8 @@ public class Archivos extends RepertorioArchivos
      * Adds the new record to the in-memory index and calls the super class add
      * the index entry to the file.
      */
-    protected void addEntryToIndex(String key, RecordHeader newRecord, int currentNumRecords) throws IOException, RecordsFileException {
+    protected void addEntryToIndex(String key, ArchivosEncabezado newRecord, int currentNumRecords) throws IOException, ArchivosException
+    {
         super.addEntryToIndex(key, newRecord, currentNumRecords);
         memIndex.put(key, newRecord);
     }
@@ -149,8 +165,9 @@ public class Archivos extends RepertorioArchivos
      * Removes the record from the index. Replaces the target with the entry at
      * the end of the index.
      */
-    protected void deleteEntryFromIndex(String key, RecordHeader header, int currentNumRecords) throws IOException, RecordsFileException {
+    protected void deleteEntryFromIndex(String key, ArchivosEncabezado header, int currentNumRecords) throws IOException, ArchivosException
+    {
         super.deleteEntryFromIndex(key, header, currentNumRecords);
-        RecordHeader deleted = (RecordHeader) memIndex.remove(key);
+        ArchivosEncabezado deleted = (ArchivosEncabezado) memIndex.remove(key);
     }
 }
